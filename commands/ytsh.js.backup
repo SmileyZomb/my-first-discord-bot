@@ -1,0 +1,62 @@
+const Discord = require("discord.js");
+const botconfig = require("../botconfig.json");
+const colours = require("../colours.json");
+const superagent = require("superagent");
+const fs = require("fs");
+const search = require('youtube-search');
+const opts = {
+    maxResults: 25,
+    key: botconfig.YOUTUBE_API,
+    type: 'video'
+};
+
+module.exports.run = async (bot, message, args) => {
+
+    let embed = new Discord.MessageEmbed()
+        .setColor("#73ffdc")
+        .setDescription("Please enter a search query. Remember to narrow down your search.")
+        .setTitle("YouTube Search API");
+    let embedMsg = await message.channel.send(embed);
+    let filter = m => m.author.id === message.author.id;
+    let query = await message.channel.awaitMessages(filter, { max: 1 });
+    let results = await search(query.first().content, opts).catch(err => console.log(err));
+    if(results) {
+        let youtubeResults = results.results;
+        let i  =0;
+        let titles = youtubeResults.map(result => {
+            i++;
+            return i + ") " + result.title;
+        });
+        console.log(titles);
+        message.channel.send({
+            embed: {
+                title: 'Selectionez votre song en entrant un nombre.',
+                description: titles.join("\n")
+            }
+        }).catch(err => console.log(err));
+
+        filter = m => (m.author.id === message.author.id) && m.content >= 1 && m.content <= youtubeResults.length;
+        let collected = await message.channel.awaitMessages(filter,{ max: 1 });
+        let selected = youtubeResults[collected.first().content - 1];
+
+        embed = new Discord.MessageEmbed()
+            .setTitle(`${selected.title}`)
+            .setURL(`${selected.link}`)
+            .setDescription(`${selected.description}`)
+            .setThumbnail(`${selected.thumbnails.default.url}`);
+
+        await message.channel.send(embed);
+    }
+
+
+
+
+};
+
+module.exports.config = {
+    name: "ytsh",
+    aliases: ["ys"],
+    description: "Recherchez une musique.",
+    usage: "s+ytsh",
+    accessableby: "Members"
+};
